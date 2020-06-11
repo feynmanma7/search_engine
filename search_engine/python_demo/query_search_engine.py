@@ -8,7 +8,12 @@ if __name__ == '__main__':
     se.load_model(model_dir_path=model_dir_path)
     print("Load model done!")
 
-    query = "Machine Learning"
-    ans = se.search(query=query)
-    print(ans)
+    id2doc_dict = {doc_id: doc_path for doc_path, doc_id in se.doc2id_dict.items()}
+
+    query = "computer vision"
+    doc_id_list = se.search(query=query)
+
+    doc_path_list = [id2doc_dict[doc_id] for doc_id in doc_id_list]
+    for doc_path in doc_path_list:
+        print(doc_path)
 
