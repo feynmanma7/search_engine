@@ -4,6 +4,10 @@ import os
 
 def save_model(model_dir_path=None, model=None):
     for model_name, model_value in model.items():
+
+        if model_value is None or len(model_value) == 0:
+            continue
+
         model_path = os.path.join(model_dir_path, model_name + '.pkl')
         with open(model_path, 'wb') as fw:
             pickle.dump(model_value, fw)

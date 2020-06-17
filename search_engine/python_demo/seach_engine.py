@@ -1,6 +1,6 @@
 from python_demo.store import load_model as _load_model, save_model as _save_model
 from python_demo.pdf_extractor import pdf_extractor
-from python_demo.text_process import process_english_text
+from python_demo.text_process import process_text
 from python_demo.utils import last_time, intersect_sorted_list
 import glob
 import os
@@ -39,7 +39,9 @@ class SearchEngine:
     def search(self, query=None):
         ans = None
 
-        for word in query.split(' '):
+        processed_query = process_text(query)
+
+        for word in processed_query:
             word = word.lower()
             if word in self.inverted_index:
                 doc_id_list = self.inverted_index[word]
@@ -58,7 +60,8 @@ class SearchEngine:
             if text is None or len(text) == 0:
                 continue
 
-            for word in process_english_text(text=text):
+            #for word in process_english_text(text=text):
+            for word in process_text(text=text):
 
                 if word in word_dict:
                     continue
@@ -70,7 +73,7 @@ class SearchEngine:
                     self.inverted_index[word].append(self.doc_id)
 
 
-    @last_time
+    @last_time(None)
     def _build_by_doc(self, file_path=None, doc_type=None):
         if doc_type == 'pdf':
             text_generator = pdf_extractor(file_path=file_path, max_page_number=self.max_page_number)
@@ -79,15 +82,18 @@ class SearchEngine:
     def _build_by_dir(self, dir_path=None, model_dir_path=None, doc_type=None):
         batch_size = 10
         i = 0
-        for file_path in glob.glob(os.path.join(dir_path, '*' + doc_type), recursive=True):
+        for file_path in glob.glob(dir_path, recursive=True):
             if file_path in self.doc2id_dict:
                 continue
             i += 1
 
             print(i, file_path)
-            self._build_by_doc(file_path=file_path, doc_type=doc_type)
-            self.doc2id_dict[file_path] = self.doc_id
-            self.doc_id += 1
+            try:
+                self._build_by_doc(file_path=file_path, doc_type=doc_type)
+                self.doc2id_dict[file_path] = self.doc_id
+                self.doc_id += 1
+            except:
+                print("Wrong", file_path, '\n')
 
             if i % batch_size == 0:
                 # Flush model to disk
@@ -97,6 +103,7 @@ class SearchEngine:
         for word in self.inverted_index.keys():
             self.inverted_index[word] = sorted(self.inverted_index[word])
 
+    @last_time("Total")
     def build_inverted_index(self, dir_path=None, model_dir_path=None):
         # inverted_index: word: sorted(doc_id, doc_id, ..., doc_id)
         self.load_model(model_dir_path=model_dir_path)
