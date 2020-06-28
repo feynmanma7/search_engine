@@ -1,9 +1,8 @@
-from python_demo.store import load_model as _load_model, save_model as _save_model
-from python_demo.pdf_extractor import pdf_extractor
-from python_demo.text_process import process_text
-from python_demo.utils import last_time, intersect_sorted_list
+from zhugeliang.search_engine.store import load_model as _load_model, save_model as _save_model
+from zhugeliang.utils.pdf_extractor import pdf_extractor
+from zhugeliang.utils.text_process import process_text
+from zhugeliang.utils.sets_util import last_time, intersect_sorted_list
 import glob
-import os
 
 
 class SearchEngine:
@@ -60,7 +59,6 @@ class SearchEngine:
             if text is None or len(text) == 0:
                 continue
 
-            #for word in process_english_text(text=text):
             for word in process_text(text=text):
 
                 if word in word_dict:
@@ -98,6 +96,9 @@ class SearchEngine:
             if i % batch_size == 0:
                 # Flush model to disk
                 self.save_model(model_dir_path=model_dir_path)
+
+        # Flush the rest to disk
+        self.save_model(model_dir_path=model_dir_path)
 
     def _sort_doc_id(self):
         for word in self.inverted_index.keys():
