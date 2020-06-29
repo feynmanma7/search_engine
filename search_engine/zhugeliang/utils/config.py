@@ -2,6 +2,10 @@ def get_book_data_dir():
     return "/Users/flyingman/Book"
 
 
+def get_logs_dir():
+    return "/Users/flyingman/Developer/github/search_engine/logs"
+
+
 def get_data_dir():
     return "/Users/flyingman/Developer/github/search_engine/data"
 

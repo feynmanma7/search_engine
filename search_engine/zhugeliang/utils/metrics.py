@@ -25,7 +25,8 @@ def cos_sim(a, b):
     # normed_a: [batch_size, dim]
     # ret: [batch_size, ]
 
-    assert a.shape == b.shape
+    # a, b, TensorShape
+    assert a.shape.as_list() == b.shape.as_list()
 
     normed_a = norm(a)
 
@@ -61,14 +62,41 @@ def seq_cos_sim(a, b):
 
 
 if __name__ == '__main__':
-    a = tf.constant([[3, 4]], dtype=tf.float32)
-    b = tf.constant([[[3, 4], [6, 8]]], dtype=tf.float32)
+    a = tf.constant([[3, 4]], dtype=tf.float32) # [1, 2]
+    b = tf.constant([[6, 8]], dtype=tf.float32) # [1, 2]
+    c = tf.constant([[[3, 4], [6, 8], [9, 18]]], dtype=tf.float32) # [1, 3, 2]
 
-    # cos: [batch_size, seq_len]
-    cos = seq_cos_sim(a, b)
-    print(cos.shape)
+    print(a.shape, b.shape, c.shape)
 
-    # softmax: [batch_size, seq_len]
-    softmax = tf.nn.softmax(cos)
-    print(softmax)
-    print(softmax.shape)
+    print(tf.multiply(a, b))
+
+    # [1, 1, 2]
+    aa = tf.expand_dims(a, axis=1)
+
+    # [1, 3, 2]
+    aa = tf.tile(aa, multiples=[1, 3, 1])
+    print(aa.shape)
+    print(aa)
+
+    d = tf.multiply(aa, c)
+    print(d)
+
+
+    print(tf.reduce_mean(aa, axis=1).shape)
+    """
+    d = tf.constant([[3, 4], [6, 8]], dtype=tf.float32)
+    print('norm', norm(d, normed_axis=1))
+    print('tf_norm', tf.norm(a, axis=[0, 1], keepdims=True))
+
+    print()
+    print('cos_sim', cos_sim(a, b))
+    print('tf_cos_sim', tf.keras.layers.Dot(axes=(1, 1), normalize=True)([a, b]))
+    print('tf_cos_sim', tf.keras.layers.Dot(axes=(1, 1), normalize=True)([a, b]))
+    print('tf_cos_sim, no norm', tf.keras.layers.Dot(axes=(1, 1), normalize=False)([a, b]))
+    print()
+
+    print('seq_cos_sim', seq_cos_sim(a, c))
+    print('tf_cos_sim', tf.keras.layers.Dot(axes=(1, 2), normalize=True)([a, c]))
+    print('tf_cos_sim, no norm', tf.keras.layers.Dot(axes=(1, 2), normalize=False)([a, c]))
+    """
+

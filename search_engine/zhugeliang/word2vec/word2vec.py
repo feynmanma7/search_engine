@@ -1,80 +1,135 @@
 import tensorflow as tf
-from tensorflow.keras.layers import Embedding, Dense, Lambda, Input
+tf.random.set_seed(7)
+from tensorflow.keras.layers import Embedding, Dense, Lambda, Input, Flatten
 from tensorflow.keras.models import Model
-from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
-from zhugeliang.utils.metrics import cos_sim, seq_cos_sim
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard
+from zhugeliang.utils.metrics import norm
+from zhugeliang.utils.config import get_logs_dir
+import os, datetime
 
 
 class Word2Vec(tf.keras.Model):
-    def __init__(self, vocab_size=None):
+    def __init__(self, vocab_size=None, window_size=None, num_neg=None, batch_size=None):
         super(Word2Vec, self).__init__()
 
         self.vocab_size = vocab_size
+        self.window_size = window_size
+        self.num_neg = num_neg
+        self.batch_size = batch_size
+
         self.model = self._build_model()
+        
+    def get_last_layer_representation(self, word_index=None):
+        # word_index: [batch_size, 1], batch of word_index
+        # word_vec: normed representation of word
+
+        # word_embedding: [batch_size, 1, embedding_dim]
+        word_embedding = self.embedding_layer(word_index)
+
+        # word_embedding: [batch_size, embedding_dim]
+        word_embedding = tf.squeeze(word_embedding, axis=1)
+
+        # word_dense: [batch_size, dense_units]
+        word_dense = self.dense_layer(word_embedding)
+
+        # === Normalize
+        # word_norm: [batch_size, dense_units]
+        word_norm = norm(word_dense, normed_axis=1)
+
+        return word_norm
 
     def _build_model(self):
-        # === Embedding
-        embedding = Embedding(input_dim=self.vocab_size,
-                              output_dim=8)
+        inputs = Input(shape=(self.window_size*2, ))
+        target = Input(shape=(1, ))
+        negatives = Input(shape=(self.num_neg, ))
 
+        emb_dim = 32
+        dense_units = 32
+
+        # Siamese Network
+        self.embedding_layer = Embedding(input_dim=self.vocab_size,
+                              output_dim=emb_dim)
+
+        self.dense_layer = Dense(units=dense_units, activation='sigmoid')
+
+        # === Embedding
         # inputs_embedding: [batch_size, input_len, output_dim]
-        inputs_embedding = embedding(inputs)
+        inputs_embedding = self.embedding_layer(inputs)
 
         # target_embedding: [batch_size, 1, output_dim]
-        target_embedding = embedding(target)
+        target_embedding = self.embedding_layer(target)
 
         # negatives_embedding: [batch_size, neg_len, output_dim]
-        negatives_embedding = embedding(negatives)
+        negatives_embedding = self.embedding_layer(negatives)
 
         # === Dense
-        # inputs_embedding: [batch_size, seq_len, units]
-        # inputs_1: [batch_size, units]
-        # Reduce mean for inputs
-        inputs_1 = Lambda(lambda x: tf.reduce_mean(x, axis=1))(inputs_embedding)
+        # inputs_dense: [batch_size, input_len, units]
+        inputs_dense = self.dense_layer(inputs_embedding)
 
-        # inputs_dense: [batch_size, units]
-        inputs_dense = Dense(units=4, activation='relu')(inputs_1)
+        # inputs_means: [batch_size, units]
+        inputs_means = Lambda(lambda x: tf.reduce_mean(x, axis=1))(inputs_dense)
+
+        # inputs_means: [batch_size, 1, units]
+        inputs_means = tf.expand_dims(inputs_means, axis=1)
 
         # target_dense: [batch_size, 1, units]
-        target_dense = Dense(units=4, activation='relu')(target_embedding)
-        # target_dense: [batch_size, units]
-        target_dense = tf.squeeze(target_dense, axis=1)
+        target_dense = self.dense_layer(target_embedding)
 
-        # [batch_size, neg_len, units]
-        negatives_dense = Dense(units=4, activation='relu')(negatives_embedding)
+        # negatives_dense: [batch_size, neg_len, units]
+        negatives_dense = self.dense_layer(negatives_embedding)
 
-        # === Cosine similarity
-        # target_cos: [batch_size, 1]
-        target_cos = cos_sim(inputs_dense, target_dense)
+        # === Multiply
+        # target_mul: [batch_size, 1, units]
+        target_mul = tf.multiply(inputs_means, target_dense)
 
-        # negatives_cos: [batch_size, neg_len]
-        negatives_cos = seq_cos_sim(inputs_dense, negatives_dense)
+        # inputs_tile: [batch_size, neg_len, units]
+        inputs_tile = tf.tile(inputs_means, multiples=[1, self.num_neg, 1])
 
-        # concat_cos: [batch_size, 1 + neg_len]
-        concat_cos = tf.concat([target_cos, negatives_cos], axis=1)
+        # negatives_mul: [batch_size, neg_len, units]
+        negatives_mul = tf.multiply(inputs_tile, negatives_dense)
+
+        # === Flatten
+        # target_flatten: [batch_size, units]
+        target_flatten = Flatten()(target_mul)
+
+        # negatives_flatten: [batch_size, neg_len * units]
+        negatives_flatten = Flatten()(negatives_mul)
+
+        # concat_norm: [batch_size, (1 + neg_len) * units]
+        concat_norm = tf.concat([target_flatten, negatives_flatten], axis=1)
 
         # === Softmax
-        # softmax: [batch_size, 1 + neg_len]
-        softmax = tf.nn.softmax(concat_cos, axis=1)
+        softmax = Dense(units=self.num_neg + 1, activation='softmax')(concat_norm)
 
         # === Model
         model = Model(inputs=[inputs, target, negatives], outputs=softmax)
         model.compile(optimizer=tf.optimizers.Adam(0.001),
                       loss=tf.losses.SparseCategoricalCrossentropy(),
-                      metrics=[tf.metrics.categorical_crossentropy])
+                      metrics=[tf.metrics.sparse_categorical_accuracy])
+
+        print(model.summary())
         return model
 
-    def train(self, train_dataset=None, val_dataset=None, model_path=None):
-        batch_size = 8
-        epochs = 10
-        total_num_train = 1000
-        total_num_val = 200
+    def train(self,
+              train_dataset=None,
+              val_dataset=None,
+              model_path=None,
+              epochs=None,
+              total_num_train=None,
+              total_num_val=None,
+              batch_size=None):
+
+        batch_size = batch_size
+        epochs = epochs
+        total_num_train = total_num_train
+        total_num_val = total_num_val
+
         steps_per_epoch = total_num_train // batch_size
         validation_steps = total_num_val // batch_size
 
         # === callbacks
         callbacks = []
-        early_stopping_cb = EarlyStopping(monitor='val_loss', patience=10)
+        early_stopping_cb = EarlyStopping(monitor='val_loss', patience=5)
         callbacks.append(early_stopping_cb)
 
         model_checkpoint_cb = ModelCheckpoint(filepath=model_path,
@@ -83,8 +138,13 @@ class Word2Vec(tf.keras.Model):
                                               save_weights_only=True)
         callbacks.append(model_checkpoint_cb)
 
+        log_dir = os.path.join(get_logs_dir(), "word2vec", "tf_w2v_"
+                               + datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
+        tensorboard_cb = TensorBoard(log_dir=log_dir, histogram_freq=1)
+        callbacks.append(tensorboard_cb)
+
         # === Model fit
-        self.model.fit(train_dataset,
+        history = self.model.fit(train_dataset,
                        batch_size=batch_size,
                        epochs=epochs,
                        validation_data=val_dataset,
@@ -93,55 +153,11 @@ class Word2Vec(tf.keras.Model):
                        validation_batch_size=batch_size,
                        callbacks=callbacks)
 
-        self.model.save_weights(model_path)
+        return history
 
 
     def call(self, inputs, target, negatives, training=None, mask=None):
-        # === Embedding
-        embedding = Embedding(input_dim=self.vocab_size,
-                              output_dim=8)
-
-        # inputs_embedding: [batch_size, input_len, output_dim]
-        inputs_embedding = embedding(inputs)
-
-        # target_embedding: [batch_size, 1, output_dim]
-        target_embedding = embedding(target)
-
-        # negatives_embedding: [batch_size, neg_len, output_dim]
-        negatives_embedding = embedding(negatives)
-
-        # === Dense
-        # inputs_embedding: [batch_size, seq_len, units]
-        # inputs_1: [batch_size, units]
-        # Reduce mean for inputs
-        inputs_1 = Lambda(lambda x: tf.reduce_mean(x, axis=1))(inputs_embedding)
-
-        # inputs_dense: [batch_size, units]
-        inputs_dense = Dense(units=4, activation='relu')(inputs_1)
-
-        # target_dense: [batch_size, 1, units]
-        target_dense = Dense(units=4, activation='relu')(target_embedding)
-        # target_dense: [batch_size, units]
-        target_dense = tf.squeeze(target_dense, axis=1)
-
-        # [batch_size, neg_len, units]
-        negatives_dense = Dense(units=4, activation='relu')(negatives_embedding)
-
-        # === Cosine similarity
-        # target_cos: [batch_size, 1]
-        target_cos = cos_sim(inputs_dense, target_dense)
-
-        # negatives_cos: [batch_size, neg_len]
-        negatives_cos = seq_cos_sim(inputs_dense, negatives_dense)
-
-        # concat_cos: [batch_size, 1 + neg_len]
-        concat_cos = tf.concat([target_cos, negatives_cos], axis=1)
-
-        # === Softmax
-        # softmax: [batch_size, 1 + neg_len]
-        softmax = tf.nn.softmax(concat_cos, axis=1)
-
-        return softmax
+        pass
 
 
 
