@@ -6,10 +6,16 @@ from zhugeliang.word2vec.sample import Sampler
 
 
 def data_generator(input_path=None, dict_dir=None):
-    word_cnt_dict, word2id_dict, id2word_dict = load_dictionary(dict_dir=dict_dir)
+    word_cnt_dict_path = os.path.join(dict_dir, "word_cnt_dict.pkl")
+    word2id_dict_path = os.path.join(dict_dir, "word2id_dict.pkl")
+    id2word_dict_path = os.path.join(dict_dir, "id2word_dict.pkl")
 
-    window_size = 3
-    num_neg = 4
+    word_cnt_dict = load_dictionary(dict_path=word_cnt_dict_path)
+    word2id_dict = load_dictionary(dict_path=word2id_dict_path)
+    id2word_dict = load_dictionary(dict_path=id2word_dict_path)
+
+    window_size = 5
+    num_neg = 8
 
     sampler = Sampler(word_cnt_dict=word_cnt_dict, word2id_dict=word2id_dict)
 
@@ -60,7 +66,7 @@ def val_generator():
 def get_dataset(generator, epochs=None, shuffle_buffer_size=None, batch_size=None):
     dataset = tf.data.Dataset.from_generator(
         generator,
-        output_shapes=(((6, ), (1, ), (4, )), (1, )),
+        output_shapes=(((10, ), (1, ), (8, )), (1, )),
         output_types=((tf.int32, tf.int32, tf.int32), tf.int32)
     )
 

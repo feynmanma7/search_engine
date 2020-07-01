@@ -37,7 +37,18 @@ def get_word_vectors(model=None, vocab_size=None, word_vec_path=None):
 def find_most_similar_words(model=None, word_vec_path=None, word=None):
     # === Load dictionary
     dict_dir = os.path.join(get_data_dir(), "book_dict")
-    word_cnt_dict, word2id_dict, id2word_dict = load_dictionary(dict_dir)
+
+    word_cnt_dict_path = os.path.join(dict_dir, "word_cnt_dict.pkl")
+    word_cnt_dict = load_dictionary(dict_path=word_cnt_dict_path)
+    print(len(word_cnt_dict))
+
+    word2id_dict_path = os.path.join(dict_dir, "word2id_dict.pkl")
+    word2id_dict = load_dictionary(dict_path=word2id_dict_path)
+    print(len(word2id_dict))
+
+    id2word_dict_path = os.path.join(dict_dir, "id2word_dict.pkl")
+    id2word_dict = load_dictionary(dict_path=id2word_dict_path)
+    print(len(id2word_dict))
 
     if word not in word2id_dict:
         print('%s not in dict' % word)
@@ -72,9 +83,9 @@ if __name__ == '__main__':
     checkpoint_dir = os.path.join(get_model_dir(), "word2vec")
     word_vec_path = os.path.join(get_data_dir(), "word_vectors")
 
-    vocab_size = 14830
-    window_size = 2
-    num_neg = 4
+    vocab_size = 30507
+    window_size = 5
+    num_neg = 8
     batch_size = 32
 
     # === Load model
@@ -86,9 +97,9 @@ if __name__ == '__main__':
     checkpoint = tf.train.latest_checkpoint(checkpoint_dir)
     w2v.model.load_weights(checkpoint)
 
-    #get_word_vectors(model=w2v, vocab_size=vocab_size, word_vec_path=word_vec_path)
+    get_word_vectors(model=w2v, vocab_size=vocab_size, word_vec_path=word_vec_path)
 
-    word = 'machine'
+    word = 'optimization'
     find_most_similar_words(model=w2v, word_vec_path=word_vec_path, word=word)
 
 

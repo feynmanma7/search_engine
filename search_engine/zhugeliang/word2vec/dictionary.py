@@ -3,7 +3,29 @@ from zhugeliang.utils.text_process import process_text
 import os, pickle
 
 
-def load_dictionary(dict_dir=None):
+def load_stop_words_dict(stop_words_dict_path=None):
+
+    with open(stop_words_dict_path, 'r', encoding='utf-8') as f:
+        stop_words_dict = {}
+        for line in f:
+            stop_word = line[:-1]
+            stop_words_dict[stop_word] = True
+
+        return stop_words_dict
+
+    return {}
+
+
+def load_dictionary(dict_path=None):
+    _dict = {}
+    with open(dict_path, 'rb') as fr:
+        _dict = pickle.load(fr)
+
+        return _dict
+
+    return {}
+
+    """
     word_cnt_dict_path = os.path.join(dict_dir, "word_cnt_dict.pkl")
     with open(word_cnt_dict_path, 'rb') as fr:
         word_cnt_dict = pickle.load(fr)
@@ -17,10 +39,10 @@ def load_dictionary(dict_dir=None):
         id2word_dict = pickle.load(fr)
 
     return word_cnt_dict, word2id_dict, id2word_dict
+    """
 
 
 def build_dictionary(dict_dir=None, min_word_count=None):
-
     word_cnt_dict_path = os.path.join(dict_dir, "word_cnt_dict.pkl")
     with open(word_cnt_dict_path, 'rb') as fr:
         word_cnt_dict = pickle.load(fr)
@@ -31,9 +53,9 @@ def build_dictionary(dict_dir=None, min_word_count=None):
 
     # === Remove the word of word_count < min_word_count.
     word_index = 0
-    for word, cnt in word_cnt_dict.items():
+    for word, cnt in sorted(word_cnt_dict.items(), key=lambda x: -x[1]):
         if cnt < min_word_count:
-            continue
+            break
 
         if word not in word2id_dict:
             word2id_dict[word] = word_index
@@ -52,52 +74,61 @@ def build_dictionary(dict_dir=None, min_word_count=None):
     return True
 
 
-def count_word(raw_text_path, seg_text_path, dict_dir):
+def count_word(text_path=None, dict_path=None):
     """
-    Segmentation on raw text, write segmentation-ed text into disk,
-    and store the word_count dict.
+    Count and store the word_count dict.
     """
 
-    # Generate and save word_count dict
-    fw = open(seg_text_path, 'w', encoding='utf-8')
-
+    # === Compute word_count
     word_cnt_dict = {}
-
-    with open(raw_text_path, 'r', encoding='utf-8') as f:
+    with open(text_path, 'r', encoding='utf-8') as f:
         for line in f:
             if len(line[:-1]) == 0:
                 continue
 
-            words = []
-            for word in process_text(line[:-1]):
-                if word in [" ", "\t", "\n"]:
-                    continue
-
-                words.append(word)
+            for word in line.split(' '):
                 if word not in word_cnt_dict:
                     word_cnt_dict[word] = 1
                 else:
                     word_cnt_dict[word] += 1
 
-            fw.write(" ".join(words) + "\n")
-
-    fw.close()
-
-    dict_path = os.path.join(dict_dir, "word_cnt_dict.pkl")
+    # === Save word_cnt_dict
     with open(dict_path, 'wb') as fw:
         pickle.dump(word_cnt_dict, fw)
 
 
 if __name__ == "__main__":
-    raw_text_path = os.path.join(get_data_dir(), "book_text.txt")
-    seg_text_path = os.path.join(get_data_dir(), "book_seg_text.txt")
+    text_path = os.path.join(get_data_dir(), "book_text.txt")
     dict_dir = os.path.join(get_data_dir(), "book_dict")
 
-    #count_word(raw_text_path, seg_text_path, dict_dir)
-    #print("Write word_count_dict done! %s" % seg_text_path)
+    """
+    word_cnt_dict_path = os.path.join(dict_dir, "word_cnt_dict.pkl")
+    count_word(text_path=text_path, dict_path=word_cnt_dict_path)
+    print("Write word_count_dict done! %s" % word_cnt_dict_path)
 
-    #build_dictionary(dict_dir=dict_dir, min_word_count=5)
-    #print("Write word2id_dict and id2word_dict done!")
+    
+    build_dictionary(dict_dir=dict_dir, min_word_count=5)
+    print("Write word2id_dict and id2word_dict done!")
+    """
 
-    word_cnt_dict, word2id_dict, id2word_dict = load_dictionary(dict_dir)
-    print(len(word_cnt_dict), len(word2id_dict), len(id2word_dict))
+    word_cnt_dict_path = os.path.join(dict_dir, "word_cnt_dict.pkl")
+    word_cnt_dict = load_dictionary(dict_path=word_cnt_dict_path)
+    print(len(word_cnt_dict))
+
+    word2id_dict_path = os.path.join(dict_dir, "word2id_dict.pkl")
+    word2id_dict = load_dictionary(dict_path=word2id_dict_path)
+    print(len(word2id_dict))
+
+    id2word_dict_path = os.path.join(dict_dir, "id2word_dict.pkl")
+    id2word_dict = load_dictionary(dict_path=id2word_dict_path)
+    print(len(id2word_dict))
+
+    i = 0
+    for i, (word, idx) in zip(range(10), word2id_dict.items()):
+        print(word, "\t", idx, "\t", word_cnt_dict[word])
+    print('-' * 30, '\n')
+    for _, (word, cnt) in zip(range(10), sorted(word_cnt_dict.items(), key=lambda x: -x[1])):
+        print(word, cnt)
+
+    #word_cnt_dict, word2id_dict, id2word_dict = load_dictionary(dict_dir)
+    #print(len(word_cnt_dict), len(word2id_dict), len(id2word_dict))

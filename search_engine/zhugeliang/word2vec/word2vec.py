@@ -15,7 +15,6 @@ class Word2Vec(tf.keras.Model):
         self.vocab_size = vocab_size
         self.window_size = window_size
         self.num_neg = num_neg
-        self.batch_size = batch_size
 
         self.model = self._build_model()
         
@@ -43,8 +42,8 @@ class Word2Vec(tf.keras.Model):
         target = Input(shape=(1, ))
         negatives = Input(shape=(self.num_neg, ))
 
-        emb_dim = 32
-        dense_units = 32
+        emb_dim = 128
+        dense_units = 64
 
         # Siamese Network
         self.embedding_layer = Embedding(input_dim=self.vocab_size,
@@ -103,9 +102,10 @@ class Word2Vec(tf.keras.Model):
 
         # === Model
         model = Model(inputs=[inputs, target, negatives], outputs=softmax)
-        model.compile(optimizer=tf.optimizers.Adam(0.001),
+        model.compile(optimizer=tf.optimizers.Adam(0.0001),
                       loss=tf.losses.SparseCategoricalCrossentropy(),
-                      metrics=[tf.metrics.sparse_categorical_accuracy])
+                      metrics=['acc'])
+                      #metrics=[tf.metrics.sparse_categorical_accuracy])
 
         print(model.summary())
         return model

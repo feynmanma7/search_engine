@@ -6,11 +6,11 @@ import time
 
 if __name__ == "__main__":
     shuffle_buffer_size = 1024
-    epochs = 10
-    batch_size = 32
-    vocab_size = 14830
-    total_num_train = 86308
-    total_num_val = 21694
+    epochs = 100
+    batch_size = 64
+    vocab_size = 30507
+    total_num_train = 1681876
+    total_num_val = 422685
 
     train_dataset = get_train_dataset(epochs=epochs,
                                       shuffle_buffer_size=shuffle_buffer_size,
@@ -23,8 +23,8 @@ if __name__ == "__main__":
 
     start = time.time()
 
-    window_size = 3
-    num_neg = 4
+    window_size = 5
+    num_neg = 8
 
     w2v = Word2Vec(vocab_size=vocab_size,
                    window_size=window_size,

@@ -24,11 +24,12 @@ def train_val_split(data_path=None, train_path=None, val_path=None, train_ratio=
     fw_train.close()
     fw_val.close()
 
+
 if __name__ == '__main__':
     data_dir = get_data_dir()
-    data_path = os.path.join(data_dir, "book_seg_text.txt")
-    train_path = os.path.join(data_dir, "book_seg_text_train.txt")
-    val_path = os.path.join(data_dir, "book_seg_text_val.txt")
+    data_path = os.path.join(data_dir, "book_text.txt")
+    train_path = os.path.join(data_dir, "book_text_train.txt")
+    val_path = os.path.join(data_dir, "book_text_val.txt")
     train_ratio = 0.8
 
     train_val_split(data_path=data_path,
