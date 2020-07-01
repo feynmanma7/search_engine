@@ -1,23 +1,44 @@
-import tensorflow as tf
 from zhugeliang.word2vec.word2vec import Word2Vec
 from zhugeliang.utils.config import get_model_dir
 import os
-
+from zhugeliang.word2vec.dataset import get_train_dataset, get_val_dataset
+import time
 
 if __name__ == "__main__":
-    batch_size = 2
-    vocab_size = 10
+    shuffle_buffer_size = 2048
+    epochs = 100
+    batch_size = 256
+    vocab_size = 30507
+    total_num_train = 1681876
+    total_num_val = 422685
 
-    input_len = 5
-    negative_len = 4
+    train_dataset = get_train_dataset(epochs=epochs,
+                                      shuffle_buffer_size=shuffle_buffer_size,
+                                      batch_size=batch_size)
+    val_dataset = get_val_dataset(epochs=epochs,
+                                  shuffle_buffer_size=shuffle_buffer_size,
+                                  batch_size=batch_size)
 
-    inputs = tf.random.uniform((batch_size, input_len), minval=0, maxval=vocab_size, dtype=tf.int32)
-    target = tf.random.uniform((batch_size, 1), minval=0, maxval=vocab_size, dtype=tf.int32)
-    negatives = tf.random.uniform((batch_size, negative_len), minval=0, maxval=vocab_size, dtype=tf.int32)
+    model_path = os.path.join(get_model_dir(), "word2vec", "ckpt")
 
-    train_dataset = None
-    val_dataset = None
-    model_path = os.path.join(get_model_dir(), "word2vec")
+    start = time.time()
 
-    w2v = Word2Vec(vocab_size=vocab_size)
-    w2v.train(train_dataset=train_dataset, val_dataset=val_dataset, model_path=model_path)
+    window_size = 5
+    num_neg = 8
+
+    w2v = Word2Vec(vocab_size=vocab_size,
+                   window_size=window_size,
+                   num_neg=num_neg,
+                   batch_size=batch_size)
+
+    w2v.train(train_dataset=train_dataset,
+              val_dataset=val_dataset,
+              model_path=model_path,
+              epochs=epochs,
+              total_num_train=total_num_train,
+              total_num_val=total_num_val,
+              batch_size=batch_size)
+
+    end = time.time()
+    last = end - start
+    print("Word2vec train done! Lasts %.2fs" % last)

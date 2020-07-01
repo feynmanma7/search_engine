@@ -11,7 +11,7 @@ if __name__ == '__main__':
 
     id2doc_dict = {doc_id: doc_path for doc_path, doc_id in se.doc2id_dict.items()}
 
-    query = "深度学习"
+    query = "word2vec milkov"
     doc_id_list = se.search(query=query)
 
     if doc_id_list is None:
