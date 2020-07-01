@@ -97,9 +97,9 @@ if __name__ == '__main__':
     checkpoint = tf.train.latest_checkpoint(checkpoint_dir)
     w2v.model.load_weights(checkpoint)
 
-    get_word_vectors(model=w2v, vocab_size=vocab_size, word_vec_path=word_vec_path)
+    #get_word_vectors(model=w2v, vocab_size=vocab_size, word_vec_path=word_vec_path)
 
-    word = 'optimization'
+    word = 'maximum'
     find_most_similar_words(model=w2v, word_vec_path=word_vec_path, word=word)
 
 

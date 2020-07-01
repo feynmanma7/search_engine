@@ -1,10 +1,11 @@
 import tensorflow as tf
 tf.random.set_seed(7)
-from tensorflow.keras.layers import Embedding, Dense, Lambda, Input, Flatten
+from tensorflow.keras.layers import Embedding, Dense, Lambda, Input, Flatten, Dropout, BatchNormalization
 from tensorflow.keras.models import Model
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard
 from zhugeliang.utils.metrics import norm
 from zhugeliang.utils.config import get_logs_dir
+from zhugeliang.word2vec.losses import dssm_loss
 import os, datetime
 
 
@@ -23,13 +24,13 @@ class Word2Vec(tf.keras.Model):
         # word_vec: normed representation of word
 
         # word_embedding: [batch_size, 1, embedding_dim]
-        word_embedding = self.embedding_layer(word_index)
+        word_embedding = self.output_embedding_layer(word_index)
 
         # word_embedding: [batch_size, embedding_dim]
         word_embedding = tf.squeeze(word_embedding, axis=1)
 
         # word_dense: [batch_size, dense_units]
-        word_dense = self.dense_layer(word_embedding)
+        word_dense = self.output_dense_layer(word_embedding)
 
         # === Normalize
         # word_norm: [batch_size, dense_units]
@@ -42,40 +43,51 @@ class Word2Vec(tf.keras.Model):
         target = Input(shape=(1, ))
         negatives = Input(shape=(self.num_neg, ))
 
-        emb_dim = 128
-        dense_units = 64
+        emb_dim = 32
+        dense_units = 16
 
-        # Siamese Network
-        self.embedding_layer = Embedding(input_dim=self.vocab_size,
+        # Layer definition.
+        self.input_embedding_layer = Embedding(input_dim=self.vocab_size,
                               output_dim=emb_dim)
 
-        self.dense_layer = Dense(units=dense_units, activation='sigmoid')
+        self.output_embedding_layer = Embedding(input_dim=self.vocab_size,
+                                               output_dim=emb_dim)
+
+
+        self.input_dense_layer = Dense(units=dense_units, activation='sigmoid')
+        self.output_dense_layer = Dense(units=dense_units, activation='sigmoid')
 
         # === Embedding
         # inputs_embedding: [batch_size, input_len, output_dim]
-        inputs_embedding = self.embedding_layer(inputs)
+        inputs_embedding = self.input_embedding_layer(inputs)
 
         # target_embedding: [batch_size, 1, output_dim]
-        target_embedding = self.embedding_layer(target)
+        target_embedding = self.output_embedding_layer(target)
 
         # negatives_embedding: [batch_size, neg_len, output_dim]
-        negatives_embedding = self.embedding_layer(negatives)
+        negatives_embedding = self.output_embedding_layer(negatives)
 
         # === Dense
         # inputs_dense: [batch_size, input_len, units]
-        inputs_dense = self.dense_layer(inputs_embedding)
-
-        # inputs_means: [batch_size, units]
-        inputs_means = Lambda(lambda x: tf.reduce_mean(x, axis=1))(inputs_dense)
+        inputs_dense = self.input_dense_layer(inputs_embedding)
+        #inputs_dense = BatchNormalization()(inputs_dense)
+        #inputs_dense = Dropout(rate=0.3)(inputs_dense)
 
         # inputs_means: [batch_size, 1, units]
-        inputs_means = tf.expand_dims(inputs_means, axis=1)
+        inputs_means = Lambda(lambda x: tf.reduce_mean(x, axis=1, keepdims=True))(inputs_dense)
+
+        # inputs_means: [batch_size, 1, units]
+        #inputs_means = tf.expand_dims(inputs_means, axis=1)
 
         # target_dense: [batch_size, 1, units]
-        target_dense = self.dense_layer(target_embedding)
+        target_dense = self.output_dense_layer(target_embedding)
+        #target_dense = Dropout(rate=0.3)(target_dense)
+        #target_dense = BatchNormalization()(target_dense)
 
         # negatives_dense: [batch_size, neg_len, units]
-        negatives_dense = self.dense_layer(negatives_embedding)
+        negatives_dense = self.output_dense_layer(negatives_embedding)
+        #negatives_dense = Dropout(rate=0.3)(negatives_dense)
+        #negatives_dense = BatchNormalization()(negatives_dense)
 
         # === Multiply
         # target_mul: [batch_size, 1, units]
@@ -102,8 +114,10 @@ class Word2Vec(tf.keras.Model):
 
         # === Model
         model = Model(inputs=[inputs, target, negatives], outputs=softmax)
-        model.compile(optimizer=tf.optimizers.Adam(0.0001),
-                      loss=tf.losses.SparseCategoricalCrossentropy(),
+        #model.compile(optimizer=tf.optimizers.Adam(0.0001),
+        model.compile(optimizer='sgd',
+                      #loss=tf.keras.losses.SparseCategoricalCrossentropy(),
+                      loss=dssm_loss,
                       metrics=['acc'])
                       #metrics=[tf.metrics.sparse_categorical_accuracy])
 

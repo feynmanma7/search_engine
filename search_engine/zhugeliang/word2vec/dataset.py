@@ -17,7 +17,7 @@ def data_generator(input_path=None, dict_dir=None):
     window_size = 5
     num_neg = 8
 
-    sampler = Sampler(word_cnt_dict=word_cnt_dict, word2id_dict=word2id_dict)
+    sampler = Sampler(word_cnt_dict=word_cnt_dict, id2word_dict=id2word_dict)
 
     with open(input_path, 'r', encoding='utf-8') as f:
         for line in f:

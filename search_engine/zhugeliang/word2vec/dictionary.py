@@ -101,16 +101,6 @@ if __name__ == "__main__":
     text_path = os.path.join(get_data_dir(), "book_text.txt")
     dict_dir = os.path.join(get_data_dir(), "book_dict")
 
-    """
-    word_cnt_dict_path = os.path.join(dict_dir, "word_cnt_dict.pkl")
-    count_word(text_path=text_path, dict_path=word_cnt_dict_path)
-    print("Write word_count_dict done! %s" % word_cnt_dict_path)
-
-    
-    build_dictionary(dict_dir=dict_dir, min_word_count=5)
-    print("Write word2id_dict and id2word_dict done!")
-    """
-
     word_cnt_dict_path = os.path.join(dict_dir, "word_cnt_dict.pkl")
     word_cnt_dict = load_dictionary(dict_path=word_cnt_dict_path)
     print(len(word_cnt_dict))

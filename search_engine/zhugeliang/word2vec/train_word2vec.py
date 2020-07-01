@@ -5,9 +5,9 @@ from zhugeliang.word2vec.dataset import get_train_dataset, get_val_dataset
 import time
 
 if __name__ == "__main__":
-    shuffle_buffer_size = 1024
+    shuffle_buffer_size = 2048
     epochs = 100
-    batch_size = 64
+    batch_size = 256
     vocab_size = 30507
     total_num_train = 1681876
     total_num_val = 422685
