@@ -6,26 +6,23 @@ import os
 
 class Sampler:
     def __init__(self, word_cnt_dict=None, id2word_dict=None):
-        #self.num_word = word_cnt_dict
         self.word_idxes = list(range(len(id2word_dict)))
 
         counts = np.array([word_cnt_dict[id2word_dict[idx]] for idx in self.word_idxes])
-        probs = counts / np.sum(counts)
-        self.probs = np.concatenate(([0], np.cumsum(probs)))
-
+        counts = np.power(counts, 0.75)
+        self.probs = counts / np.sum(counts)
 
     def sample(self, num_sample=None, method="random"):
         if method == "random":
             return self._random_sample(num_sample)
+        elif method == "weighted":
+            return self._weighted_sample(num_sample)
 
     def _random_sample(self, num_sample):
         return np.random.choice(self.word_idxes, num_sample)
 
     def _weighted_sample(self, num_sample):
-        r = np.random.random(num_sample)
-        choices = []
-        for j in range(10):
-            pass
+        return np.random.choice(self.word_idxes, num_sample, p=self.probs)
 
 
 if __name__ == '__main__':
@@ -51,4 +48,4 @@ if __name__ == '__main__':
     print(samples)
 
     samples = sampler.sample(num_sample=10, method="weighted")
-    print(samples.probs)
+    print(samples)

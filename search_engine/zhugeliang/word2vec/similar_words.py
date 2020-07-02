@@ -1,6 +1,6 @@
 from zhugeliang.utils.config import get_model_dir, get_data_dir
 from zhugeliang.word2vec.dictionary import load_dictionary
-from zhugeliang.word2vec.word2vec import Word2Vec
+from zhugeliang.word2vec.word2vec import Word2vec
 import tensorflow as tf
 import os
 import numpy as np
@@ -83,23 +83,22 @@ if __name__ == '__main__':
     checkpoint_dir = os.path.join(get_model_dir(), "word2vec")
     word_vec_path = os.path.join(get_data_dir(), "word_vectors")
 
-    vocab_size = 30507
+    vocab_size = 10001 # ptb, min_cnt = 5
     window_size = 5
     num_neg = 8
     batch_size = 32
 
     # === Load model
-    w2v = Word2Vec(vocab_size=vocab_size,
+    w2v = Word2vec(vocab_size=vocab_size,
                    window_size=window_size,
-                   num_neg=num_neg,
-                   batch_size=batch_size)
+                   num_neg=num_neg)
 
     checkpoint = tf.train.latest_checkpoint(checkpoint_dir)
     w2v.model.load_weights(checkpoint)
 
     #get_word_vectors(model=w2v, vocab_size=vocab_size, word_vec_path=word_vec_path)
 
-    word = 'maximum'
+    word = 'mobile'
     find_most_similar_words(model=w2v, word_vec_path=word_vec_path, word=word)
 
 

@@ -9,15 +9,25 @@ from zhugeliang.word2vec.losses import dssm_loss
 import os, datetime
 
 
-class Word2Vec(tf.keras.Model):
-    def __init__(self, vocab_size=None, window_size=None, num_neg=None, batch_size=None):
-        super(Word2Vec, self).__init__()
+class Word2vec(tf.keras.Model):
+    def __init__(self,
+                 vocab_size=10001,
+                 window_size=3,
+                 num_neg=5,
+                 embedding_dim=32,
+                 ):
+        super(Word2vec, self).__init__()
 
         self.vocab_size = vocab_size
         self.window_size = window_size
         self.num_neg = num_neg
+        self.embedding_dim = embedding_dim
 
-        self.model = self._build_model()
+        self.input_embedding_layer = Embedding(
+            input_dim=vocab_size, output_dim=self.embedding_dim)
+        self.output_embedding_layer = Embedding(
+            input_dim=vocab_size, output_dim=self.embedding_dim)
+
         
     def get_last_layer_representation(self, word_index=None):
         # word_index: [batch_size, 1], batch of word_index
@@ -30,164 +40,55 @@ class Word2Vec(tf.keras.Model):
         word_embedding = tf.squeeze(word_embedding, axis=1)
 
         # word_dense: [batch_size, dense_units]
-        word_dense = self.output_dense_layer(word_embedding)
+        #word_dense = self.output_dense_layer(word_embedding)
 
         # === Normalize
         # word_norm: [batch_size, dense_units]
-        word_norm = norm(word_dense, normed_axis=1)
+        word_norm = norm(word_embedding, normed_axis=1)
 
         return word_norm
 
-    def _build_model(self):
-        inputs = Input(shape=(self.window_size*2, ))
-        target = Input(shape=(1, ))
-        negatives = Input(shape=(self.num_neg, ))
-
-        emb_dim = 32
-        dense_units = 16
-
-        # Layer definition.
-        self.input_embedding_layer = Embedding(input_dim=self.vocab_size,
-                              output_dim=emb_dim)
-
-        self.output_embedding_layer = Embedding(input_dim=self.vocab_size,
-                                               output_dim=emb_dim)
-
-
-        self.input_dense_layer = Dense(units=dense_units, activation='sigmoid')
-        self.output_dense_layer = Dense(units=dense_units, activation='sigmoid')
-
+    def call(self, contexts, target, negatives, training=None, mask=None):
         # === Embedding
-        # inputs_embedding: [batch_size, input_len, output_dim]
-        inputs_embedding = self.input_embedding_layer(inputs)
 
-        # target_embedding: [batch_size, 1, output_dim]
+        # [None, w*2, emb_dim]
+        contexts_embedding = self.input_embedding_layer(contexts)
+
+        # [None, 1, emb_dim]
+        contexts = tf.reduce_mean(contexts_embedding, axis=1, keepdims=True)
+
+        # [None, 1, emb_dim]
         target_embedding = self.output_embedding_layer(target)
 
-        # negatives_embedding: [batch_size, neg_len, output_dim]
+        # [None, num_neg, emb_dim]
         negatives_embedding = self.output_embedding_layer(negatives)
 
-        # === Dense
-        # inputs_dense: [batch_size, input_len, units]
-        inputs_dense = self.input_dense_layer(inputs_embedding)
-        #inputs_dense = BatchNormalization()(inputs_dense)
-        #inputs_dense = Dropout(rate=0.3)(inputs_dense)
+        # === Cosine
+        # [None, 1]
+        target_cos = tf.keras.layers.Dot(axes=(2, 2), normalize=True)\
+            ([target_embedding, contexts])
 
-        # inputs_means: [batch_size, 1, units]
-        inputs_means = Lambda(lambda x: tf.reduce_mean(x, axis=1, keepdims=True))(inputs_dense)
+        # [None, num_neg]
+        negatives_cos = tf.keras.layers.Dot(axes=(2, 2), normalize=True)\
+            ([target_embedding, negatives_embedding])
 
-        # inputs_means: [batch_size, 1, units]
-        #inputs_means = tf.expand_dims(inputs_means, axis=1)
+        pos_loss = tf.reduce_mean(tf.sigmoid(target_cos))
+        neg_loss = tf.reduce_mean(tf.sigmoid(-negatives_cos))
 
-        # target_dense: [batch_size, 1, units]
-        target_dense = self.output_dense_layer(target_embedding)
-        #target_dense = Dropout(rate=0.3)(target_dense)
-        #target_dense = BatchNormalization()(target_dense)
+        #pos_loss = tf.reduce_mean(-tf.math.log(1 + tf.math.exp(-target_cos)))
+        #neg_loss = tf.reduce_mean(-tf.math.log(1 + tf.math.exp(negatives_cos)))
 
-        # negatives_dense: [batch_size, neg_len, units]
-        negatives_dense = self.output_dense_layer(negatives_embedding)
-        #negatives_dense = Dropout(rate=0.3)(negatives_dense)
-        #negatives_dense = BatchNormalization()(negatives_dense)
-
-        # === Multiply
-        # target_mul: [batch_size, 1, units]
-        target_mul = tf.multiply(inputs_means, target_dense)
-
-        # inputs_tile: [batch_size, neg_len, units]
-        inputs_tile = tf.tile(inputs_means, multiples=[1, self.num_neg, 1])
-
-        # negatives_mul: [batch_size, neg_len, units]
-        negatives_mul = tf.multiply(inputs_tile, negatives_dense)
-
-        # === Flatten
-        # target_flatten: [batch_size, units]
-        target_flatten = Flatten()(target_mul)
-
-        # negatives_flatten: [batch_size, neg_len * units]
-        negatives_flatten = Flatten()(negatives_mul)
-
-        # concat_norm: [batch_size, (1 + neg_len) * units]
-        concat_norm = tf.concat([target_flatten, negatives_flatten], axis=1)
-
-        # === Softmax
-        softmax = Dense(units=self.num_neg + 1, activation='softmax')(concat_norm)
-
-        # === Model
-        model = Model(inputs=[inputs, target, negatives], outputs=softmax)
-        #model.compile(optimizer=tf.optimizers.Adam(0.0001),
-        model.compile(optimizer='sgd',
-                      #loss=tf.keras.losses.SparseCategoricalCrossentropy(),
-                      loss=dssm_loss,
-                      metrics=['acc'])
-                      #metrics=[tf.metrics.sparse_categorical_accuracy])
-
-        print(model.summary())
-        return model
-
-    def train(self,
-              train_dataset=None,
-              val_dataset=None,
-              model_path=None,
-              epochs=None,
-              total_num_train=None,
-              total_num_val=None,
-              batch_size=None):
-
-        batch_size = batch_size
-        epochs = epochs
-        total_num_train = total_num_train
-        total_num_val = total_num_val
-
-        steps_per_epoch = total_num_train // batch_size
-        validation_steps = total_num_val // batch_size
-
-        # === callbacks
-        callbacks = []
-        early_stopping_cb = EarlyStopping(monitor='val_loss', patience=5)
-        callbacks.append(early_stopping_cb)
-
-        model_checkpoint_cb = ModelCheckpoint(filepath=model_path,
-                                              monitor='val_loss',
-                                              save_best_only=True,
-                                              save_weights_only=True)
-        callbacks.append(model_checkpoint_cb)
-
-        log_dir = os.path.join(get_logs_dir(), "word2vec", "tf_w2v_"
-                               + datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
-        tensorboard_cb = TensorBoard(log_dir=log_dir, histogram_freq=1)
-        callbacks.append(tensorboard_cb)
-
-        # === Model fit
-        history = self.model.fit(train_dataset,
-                       batch_size=batch_size,
-                       epochs=epochs,
-                       validation_data=val_dataset,
-                       steps_per_epoch=steps_per_epoch,
-                       validation_steps=validation_steps,
-                       validation_batch_size=batch_size,
-                       callbacks=callbacks)
-
-        return history
+        loss = pos_loss + neg_loss
+        return loss
 
 
-    def call(self, inputs, target, negatives, training=None, mask=None):
-        pass
+if __name__ == '__main__':
+    model = Word2vec()
+    batch_size = 8
 
+    contexts = tf.random.uniform((8, 6), minval=0, maxval=10, dtype=tf.int32)
+    target = tf.random.uniform((8, 1), minval=0, maxval=10, dtype=tf.int32)
+    negatives = tf.random.uniform((8, 5), minval=0, maxval=10, dtype=tf.int32)
 
-
-if __name__ == "__main__":
-
-    batch_size = 2
-    vocab_size = 10
-
-    input_len = 5
-    negative_len = 4
-
-    inputs = tf.random.uniform((batch_size, input_len), minval=0, maxval=vocab_size, dtype=tf.int32)
-    target = tf.random.uniform((batch_size, 1), minval=0, maxval=vocab_size, dtype=tf.int32)
-    negatives = tf.random.uniform((batch_size, negative_len), minval=0, maxval=vocab_size, dtype=tf.int32)
-
-    w2v = Word2Vec(vocab_size=vocab_size)
-    w2v(inputs, target, negatives)
-
-
+    loss = model(contexts, target, negatives)
+    print(loss)
