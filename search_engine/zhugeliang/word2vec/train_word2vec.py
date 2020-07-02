@@ -56,7 +56,7 @@ def train_word2vec():
             i += 1
             batch_loss += train_step(model, optimizer, contexts, target, negatives)
             print("Epoch: %d/%d, batch: %d, loss: %.4f" %
-                  (epoch+1/epochs, batch_idx, batch_loss/(batch_idx+1)))
+                  (epoch+1, epochs, batch_idx, batch_loss/(batch_idx+1)))
 
         assert i > 0
         batch_loss /= i
