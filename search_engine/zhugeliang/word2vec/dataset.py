@@ -74,6 +74,8 @@ if __name__ == "__main__":
         print(data)
     """
 
+
+
     model = Word2vec()
 
     val_dataset = get_dataset(input_path=val_path,
@@ -81,6 +83,11 @@ if __name__ == "__main__":
     print("\n===Val===")
     for contexts, target, negatives in val_dataset.take(2):
         print(contexts.shape, target.shape, negatives.shape)
-        loss = model(contexts, target, negatives)
-        print(loss, loss.shape)
+        print(target)
+        #loss = model(contexts, target, negatives)
+        #print(loss, loss.shape)
+
+    for contexts, target, negatives in val_dataset.take(2):
+        print(contexts.shape, target.shape, negatives.shape)
+        print(target)
 

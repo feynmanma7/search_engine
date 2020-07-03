@@ -4,6 +4,7 @@ import os
 from zhugeliang.word2vec.dataset import get_dataset
 import time
 import tensorflow as tf
+from zhugeliang.word2vec.similar_words import get_word_representation
 
 
 def train_word2vec():
@@ -12,11 +13,11 @@ def train_word2vec():
     total_num_val = 77130
 
     shuffle_buffer_size = 2048 * 2
-    epochs = 100
+    epochs = 10
     batch_size = 128
-    window_size = 3
+    window_size = 5
     num_neg = 5
-    embedding_dim = 8 # To tune
+    embedding_dim = 64 # To tune
 
     train_path = os.path.join(get_data_dir(), "ptb.train.txt")
     val_path = os.path.join(get_data_dir(), "ptb.valid.txt")
@@ -45,25 +46,48 @@ def train_word2vec():
                      num_neg=num_neg,
                      embedding_dim=embedding_dim)
 
+    checkpoint_dir = os.path.join(get_model_dir(), "word2vec")
+    checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt")
+    checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=model)
+
+    total_train_batch = total_num_train // batch_size + 1
 
     # === Train
+    start = time.time()
     for epoch in range(epochs):
         total_loss = 0
         batch_loss = 0
 
+        total_train_batch = 1000 # just for debug
+
+        epoch_start = time.time()
         i = 0
-        for batch_idx, (contexts, target, negatives) in enumerate(train_dataset):
+        for batch_idx, (contexts, target, negatives) in zip(range(total_train_batch), train_dataset):
             i += 1
             batch_loss += train_step(model, optimizer, contexts, target, negatives)
-            print("Epoch: %d/%d, batch: %d, loss: %.4f" %
-                  (epoch+1, epochs, batch_idx, batch_loss/(batch_idx+1)))
+
+            if i % 100 == 0:
+                batch_end = time.time()
+                batch_last = batch_end - start
+                print("Epoch: %d/%d, batch: %d/%d, loss: %.4f, lasts: %.2fs" %
+                      (epoch+1, epochs, batch_idx+1, total_train_batch, batch_loss/(batch_idx+1), batch_last))
 
         assert i > 0
         batch_loss /= i
 
         total_loss += batch_loss
-        print(epoch, total_loss/(epoch+1))
+        epoch_end = time.time()
+        epoch_last = epoch_end - epoch_start
+        print("Epoch: %d/%d, loss: %.4f, lasts: %.2fs" % (epoch+1, epochs, total_loss/(epoch+1), epoch_last))
 
+        checkpoint.save(file_prefix=checkpoint_prefix)
+        #print(model.output_embedding_layer.get_weights())
+        #print(get_word_representation(model=model))
+
+
+    end = time.time()
+    last = end - start
+    print("Lasts %.2fs" % last)
 
 @tf.function
 def train_step(model, optimizer, contexts, target, negatives):
@@ -78,6 +102,7 @@ def train_step(model, optimizer, contexts, target, negatives):
     optimizer.apply_gradients(zip(gradients, variables))
 
     return batch_loss
+
 
 if __name__ == "__main__":
     train_word2vec()

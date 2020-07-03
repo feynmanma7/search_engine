@@ -1,12 +1,12 @@
 from zhugeliang.utils.config import get_model_dir, get_data_dir
 from zhugeliang.word2vec.dictionary import load_dictionary
-from zhugeliang.word2vec.word2vec import Word2vec
+from zhugeliang.word2vec.word2vec import Word2vec, test_word2vec_once
 import tensorflow as tf
 import os
 import numpy as np
 
 
-def get_word_representation(model=None, ):
+def get_word_representation(model=None):
     word_index = tf.constant([[0], [1], [2000], [300], [4]], dtype=tf.int32)
     print(word_index.shape)
     word_vec = model.get_last_layer_representation(word_index=word_index)
@@ -85,20 +85,34 @@ if __name__ == '__main__':
 
     vocab_size = 10001 # ptb, min_cnt = 5
     window_size = 5
-    num_neg = 8
-    batch_size = 32
+    num_neg = 5
+    embedding_dim = 64
 
     # === Load model
+    checkpoint_dir = os.path.join(get_model_dir(), "word2vec")
+    checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt")
+
     w2v = Word2vec(vocab_size=vocab_size,
                    window_size=window_size,
-                   num_neg=num_neg)
+                   num_neg=num_neg,
+                   embedding_dim=embedding_dim)
 
-    checkpoint = tf.train.latest_checkpoint(checkpoint_dir)
-    w2v.model.load_weights(checkpoint)
+    optimizer = tf.keras.optimizers.Adam(0.001)
+    w2v.compile(optimizer=optimizer)
 
-    #get_word_vectors(model=w2v, vocab_size=vocab_size, word_vec_path=word_vec_path)
+    checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=w2v)
+    latest = tf.train.latest_checkpoint(checkpoint_dir)
+    status = checkpoint.restore(latest)
+    status.assert_existing_objects_matched()
 
-    word = 'mobile'
+    # === RUN ONCE!!! Important, must test the model once, then get the weights.
+    test_word2vec_once(model=w2v)
+
+    # === Get word vectors
+    get_word_vectors(model=w2v, vocab_size=vocab_size, word_vec_path=word_vec_path)
+
+    # === Find top sim words
+    word = 'computer'
     find_most_similar_words(model=w2v, word_vec_path=word_vec_path, word=word)
 
 

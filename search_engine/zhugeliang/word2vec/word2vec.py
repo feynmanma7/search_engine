@@ -24,9 +24,9 @@ class Word2vec(tf.keras.Model):
         self.embedding_dim = embedding_dim
 
         self.input_embedding_layer = Embedding(
-            input_dim=vocab_size, output_dim=self.embedding_dim)
+            input_dim=self.vocab_size, output_dim=self.embedding_dim)
         self.output_embedding_layer = Embedding(
-            input_dim=vocab_size, output_dim=self.embedding_dim)
+            input_dim=self.vocab_size, output_dim=self.embedding_dim)
 
         
     def get_last_layer_representation(self, word_index=None):
@@ -82,13 +82,18 @@ class Word2vec(tf.keras.Model):
         return loss
 
 
-if __name__ == '__main__':
-    model = Word2vec()
-    batch_size = 8
 
+def test_word2vec_once(model=None):
     contexts = tf.random.uniform((8, 6), minval=0, maxval=10, dtype=tf.int32)
     target = tf.random.uniform((8, 1), minval=0, maxval=10, dtype=tf.int32)
     negatives = tf.random.uniform((8, 5), minval=0, maxval=10, dtype=tf.int32)
 
     loss = model(contexts, target, negatives)
     print(loss)
+    #print("output_embedding_weights")
+    #print(model.output_embedding_layer.get_weights())
+
+
+if __name__ == '__main__':
+    model = Word2vec()
+    test_word2vec_once(model=model)
