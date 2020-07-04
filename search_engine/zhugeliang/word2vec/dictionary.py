@@ -1,5 +1,4 @@
 from zhugeliang.utils.config import get_data_dir
-from zhugeliang.utils.text_process import process_text
 import os, pickle
 
 
@@ -24,22 +23,6 @@ def load_dictionary(dict_path=None):
         return _dict
 
     return {}
-
-    """
-    word_cnt_dict_path = os.path.join(dict_dir, "word_cnt_dict.pkl")
-    with open(word_cnt_dict_path, 'rb') as fr:
-        word_cnt_dict = pickle.load(fr)
-
-    word2id_dict_path = os.path.join(dict_dir, "word2id_dict.pkl")
-    with open(word2id_dict_path, 'rb') as fr:
-        word2id_dict = pickle.load(fr)
-
-    id2word_dict_path = os.path.join(dict_dir, "id2word_dict.pkl")
-    with open(id2word_dict_path, 'rb') as fr:
-        id2word_dict = pickle.load(fr)
-
-    return word_cnt_dict, word2id_dict, id2word_dict
-    """
 
 
 def build_dictionary(dict_dir=None, min_word_count=None):
@@ -98,17 +81,22 @@ def count_word(text_path=None, dict_path=None):
 
 
 if __name__ == "__main__":
-    text_path = os.path.join(get_data_dir(), "book_text.txt")
+    #text_path = os.path.join(get_data_dir(), "book_text.txt")
+    text_path = os.path.join(get_data_dir(), "ptb_train_val.txt")
     dict_dir = os.path.join(get_data_dir(), "book_dict")
 
     word_cnt_dict_path = os.path.join(dict_dir, "word_cnt_dict.pkl")
+
+    count_word(text_path=text_path, dict_path=word_cnt_dict_path)
+
+    build_dictionary(dict_dir=dict_dir, min_word_count=5)
+
     word_cnt_dict = load_dictionary(dict_path=word_cnt_dict_path)
     print(len(word_cnt_dict))
 
     word2id_dict_path = os.path.join(dict_dir, "word2id_dict.pkl")
     word2id_dict = load_dictionary(dict_path=word2id_dict_path)
     print(len(word2id_dict))
-
     id2word_dict_path = os.path.join(dict_dir, "id2word_dict.pkl")
     id2word_dict = load_dictionary(dict_path=id2word_dict_path)
     print(len(id2word_dict))

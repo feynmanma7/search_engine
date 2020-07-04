@@ -66,28 +66,6 @@ if __name__ == '__main__':
     b = tf.constant([[6, 8]], dtype=tf.float32) # [1, 2]
     c = tf.constant([[[3, 4], [6, 8], [9, 18]]], dtype=tf.float32) # [1, 3, 2]
 
-    print(a.shape, b.shape, c.shape)
-
-    print(tf.multiply(a, b))
-
-    # [1, 1, 2]
-    aa = tf.expand_dims(a, axis=1)
-
-    # [1, 3, 2]
-    aa = tf.tile(aa, multiples=[1, 3, 1])
-    print(aa.shape)
-    print(aa)
-
-    d = tf.multiply(aa, c)
-    print(d)
-
-
-    print(tf.reduce_mean(aa, axis=1).shape)
-    """
-    d = tf.constant([[3, 4], [6, 8]], dtype=tf.float32)
-    print('norm', norm(d, normed_axis=1))
-    print('tf_norm', tf.norm(a, axis=[0, 1], keepdims=True))
-
     print()
     print('cos_sim', cos_sim(a, b))
     print('tf_cos_sim', tf.keras.layers.Dot(axes=(1, 1), normalize=True)([a, b]))
@@ -98,5 +76,5 @@ if __name__ == '__main__':
     print('seq_cos_sim', seq_cos_sim(a, c))
     print('tf_cos_sim', tf.keras.layers.Dot(axes=(1, 2), normalize=True)([a, c]))
     print('tf_cos_sim, no norm', tf.keras.layers.Dot(axes=(1, 2), normalize=False)([a, c]))
-    """
+
 
