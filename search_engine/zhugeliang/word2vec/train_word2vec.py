@@ -4,7 +4,7 @@ import os
 from zhugeliang.word2vec.dataset import get_dataset
 import time
 import tensorflow as tf
-from zhugeliang.word2vec.similar_words import get_word_representation
+import numpy as np
 
 
 def train_word2vec():
@@ -58,19 +58,20 @@ def train_word2vec():
         total_loss = 0
         batch_loss = 0
 
-        total_train_batch = 1000 # just for debug
+        #total_train_batch = 101 # just for debug
 
         epoch_start = time.time()
         i = 0
         for batch_idx, (contexts, target, negatives) in zip(range(total_train_batch), train_dataset):
             i += 1
-            batch_loss += train_step(model, optimizer, contexts, target, negatives)
+            cur_loss = train_step(model, optimizer, contexts, target, negatives)
+            batch_loss += cur_loss
 
             if i % 100 == 0:
                 batch_end = time.time()
                 batch_last = batch_end - start
-                print("Epoch: %d/%d, batch: %d/%d, loss: %.4f, lasts: %.2fs" %
-                      (epoch+1, epochs, batch_idx+1, total_train_batch, batch_loss/(batch_idx+1), batch_last))
+                print("Epoch: %d/%d, batch: %d/%d, batch_loss: %.4f, cur_loss: %.4f, lasts: %.2fs" %
+                      (epoch+1, epochs, batch_idx+1, total_train_batch, batch_loss/(batch_idx+1), cur_loss, batch_last))
 
         assert i > 0
         batch_loss /= i
@@ -79,6 +80,25 @@ def train_word2vec():
         epoch_end = time.time()
         epoch_last = epoch_end - epoch_start
         print("Epoch: %d/%d, loss: %.4f, lasts: %.2fs" % (epoch+1, epochs, total_loss/(epoch+1), epoch_last))
+
+        # === Test sim
+        """
+        # [vocab_size, embedding_dim]
+        weights = model.output_embedding_layer.get_weights()
+        weights = np.array(weights[0])
+        print(weights.shape)
+        # computer: 236
+        #sample_word_idx = 236
+
+        # [embedding_dim, ]
+        sample = weights[236]
+
+        scores = np.dot(weights, sample)
+        rank = np.argsort(-scores)
+        top = rank[:20]
+        print("top", top)
+        print("score", scores[top])
+        """
 
         checkpoint.save(file_prefix=checkpoint_prefix)
         #print(model.output_embedding_layer.get_weights())
@@ -106,3 +126,4 @@ def train_step(model, optimizer, contexts, target, negatives):
 
 if __name__ == "__main__":
     train_word2vec()
+

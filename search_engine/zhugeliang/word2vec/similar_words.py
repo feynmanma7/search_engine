@@ -75,7 +75,7 @@ def find_most_similar_words(model=None, word_vec_path=None, word=None):
     print('ranks', ranks[:20])
     print('scores', sims[ranks[:20]])
     sim_words = [id2word_dict[idx] for idx in ranks[:20]]
-    print("Top sim words of %s are: " % word)
+    print("Top sim words of '%s' are: " % word)
     print(sim_words)
 
 
@@ -106,7 +106,11 @@ if __name__ == '__main__':
     status.assert_existing_objects_matched()
 
     # === RUN ONCE!!! Important, must test the model once, then get the weights.
-    test_word2vec_once(model=w2v)
+    print("Run ONCE")
+    print(test_word2vec_once(model=w2v))
+    print()
+
+    get_word_representation(model=w2v)
 
     # === Get word vectors
     get_word_vectors(model=w2v, vocab_size=vocab_size, word_vec_path=word_vec_path)

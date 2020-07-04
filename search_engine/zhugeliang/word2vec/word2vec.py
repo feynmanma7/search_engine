@@ -64,36 +64,39 @@ class Word2vec(tf.keras.Model):
         negatives_embedding = self.output_embedding_layer(negatives)
 
         # === Cosine
-        # [None, 1]
+        # [None, 1, 1]
         target_cos = tf.keras.layers.Dot(axes=(2, 2), normalize=True)\
             ([target_embedding, contexts])
 
-        # [None, num_neg]
+        # [None, 1, num_neg]
         negatives_cos = tf.keras.layers.Dot(axes=(2, 2), normalize=True)\
             ([target_embedding, negatives_embedding])
 
-        pos_loss = tf.reduce_mean(tf.sigmoid(target_cos))
-        neg_loss = tf.reduce_mean(tf.sigmoid(-negatives_cos))
+        #pos_loss = tf.reduce_mean(tf.sigmoid(target_cos))
+        #neg_loss = tf.reduce_mean(tf.sigmoid(-negatives_cos))
 
-        #pos_loss = tf.reduce_mean(-tf.math.log(1 + tf.math.exp(-target_cos)))
-        #neg_loss = tf.reduce_mean(-tf.math.log(1 + tf.math.exp(negatives_cos)))
+        pos_loss = tf.reduce_mean(-tf.math.log(1 / (1 + tf.math.exp(-target_cos))))
+        neg_loss = tf.reduce_mean(-tf.math.log(1 / (1 + tf.math.exp(negatives_cos))))
 
         loss = pos_loss + neg_loss
         return loss
 
 
-
 def test_word2vec_once(model=None):
-    contexts = tf.random.uniform((8, 6), minval=0, maxval=10, dtype=tf.int32)
-    target = tf.random.uniform((8, 1), minval=0, maxval=10, dtype=tf.int32)
-    negatives = tf.random.uniform((8, 5), minval=0, maxval=10, dtype=tf.int32)
+    contexts = tf.random.uniform((8, model.window_size*2),
+                                 minval=0, maxval=model.vocab_size, dtype=tf.int32)
+    target = tf.random.uniform((8, 1),
+                               minval=0, maxval=model.vocab_size, dtype=tf.int32)
+    negatives = tf.random.uniform((8, model.num_neg),
+                                  minval=0, maxval=model.vocab_size, dtype=tf.int32)
 
     loss = model(contexts, target, negatives)
-    print(loss)
-    #print("output_embedding_weights")
-    #print(model.output_embedding_layer.get_weights())
+    return loss
 
 
 if __name__ == '__main__':
-    model = Word2vec()
-    test_word2vec_once(model=model)
+    model = Word2vec(vocab_size=10,
+                     window_size=3,
+                     num_neg=5,
+                     embedding_dim=8)
+    print(test_word2vec_once(model=model))
