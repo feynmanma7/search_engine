@@ -8,14 +8,18 @@ from zhugeliang.utils.config import get_logs_dir
 from zhugeliang.word2vec.losses import dssm_loss
 import os, datetime
 
-
-class Word2vec(tf.keras.Model):
-    def __init__(self,
-                 vocab_size=10001,
+"""
+vocab_size=10001,
                  window_size=3,
                  num_neg=5,
                  embedding_dim=32,
-                 ):
+"""
+
+class Word2vec(tf.keras.Model):
+    def __init__(self,vocab_size=None,
+                 window_size=None,
+                 num_neg=None,
+                 embedding_dim=None):
         super(Word2vec, self).__init__()
 
         self.vocab_size = vocab_size
@@ -28,7 +32,37 @@ class Word2vec(tf.keras.Model):
         self.output_embedding_layer = Embedding(
             input_dim=self.vocab_size, output_dim=self.embedding_dim)
 
-        
+    def call(self, contexts, target, negatives):
+        # === Embedding
+        # [None, w*2, emb_dim]
+        contexts_embedding = self.input_embedding_layer(contexts)
+
+        # [None, 1, emb_dim]
+        contexts = tf.reduce_mean(contexts_embedding, axis=1, keepdims=True)
+
+        # [None, 1, emb_dim]
+        target_embedding = self.output_embedding_layer(target)
+
+        # [None, num_neg, emb_dim]
+        negatives_embedding = self.output_embedding_layer(negatives)
+
+        # === Cosine similarity
+        # [None, 1, 1]
+        target_cos = tf.keras.layers.Dot(axes=(2, 2), normalize=True)\
+            ([target_embedding, contexts])
+
+        # [None, num_neg, 1]
+        negatives_cos = tf.keras.layers.Dot(axes=(2, 2), normalize=True)\
+            ([target_embedding, negatives_embedding])
+
+        # === Loss
+        pos_loss = tf.reduce_mean(-tf.math.log(1 / (1 + tf.math.exp(-target_cos))))
+        neg_loss = tf.reduce_mean(-tf.math.log(1 / (1 + tf.math.exp(negatives_cos))))
+
+        loss = pos_loss + neg_loss
+
+        return loss
+
     def get_last_layer_representation(self, word_index=None):
         # word_index: [batch_size, 1], batch of word_index
         # word_vec: normed representation of word
@@ -47,39 +81,6 @@ class Word2vec(tf.keras.Model):
         word_norm = norm(word_embedding, normed_axis=1)
 
         return word_norm
-
-    def call(self, contexts, target, negatives, training=None, mask=None):
-        # === Embedding
-
-        # [None, w*2, emb_dim]
-        contexts_embedding = self.input_embedding_layer(contexts)
-
-        # [None, 1, emb_dim]
-        contexts = tf.reduce_mean(contexts_embedding, axis=1, keepdims=True)
-
-        # [None, 1, emb_dim]
-        target_embedding = self.output_embedding_layer(target)
-
-        # [None, num_neg, emb_dim]
-        negatives_embedding = self.output_embedding_layer(negatives)
-
-        # === Cosine
-        # [None, 1, 1]
-        target_cos = tf.keras.layers.Dot(axes=(2, 2), normalize=True)\
-            ([target_embedding, contexts])
-
-        # [None, 1, num_neg]
-        negatives_cos = tf.keras.layers.Dot(axes=(2, 2), normalize=True)\
-            ([target_embedding, negatives_embedding])
-
-        #pos_loss = tf.reduce_mean(tf.sigmoid(target_cos))
-        #neg_loss = tf.reduce_mean(tf.sigmoid(-negatives_cos))
-
-        pos_loss = tf.reduce_mean(-tf.math.log(1 / (1 + tf.math.exp(-target_cos))))
-        neg_loss = tf.reduce_mean(-tf.math.log(1 / (1 + tf.math.exp(negatives_cos))))
-
-        loss = pos_loss + neg_loss
-        return loss
 
 
 def test_word2vec_once(model=None):

@@ -25,10 +25,10 @@ def count_training_num(input_path=None, word_cnt_dict=None, min_word_cnt=None):
 
 
 if __name__ == '__main__':
-    #train_path = os.path.join(get_data_dir(), "shuf_train.txt")
-    train_path = os.path.join(get_data_dir(), "ptb.valid.txt")
+    train_path = os.path.join(get_data_dir(), "shuf_val.txt")
+    #train_path = os.path.join(get_data_dir(), "ptb.valid.txt")
     word_cnt_dict_path = os.path.join(get_data_dir(), "book_dict", "word_cnt_dict.pkl")
-    min_word_cnt = 5
+    min_word_cnt = 10
 
     word_cnt_dict = load_dictionary(dict_path=word_cnt_dict_path)
     print(len(word_cnt_dict))

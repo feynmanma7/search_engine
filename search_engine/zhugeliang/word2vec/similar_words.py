@@ -56,7 +56,7 @@ def find_most_similar_words(model=None, word_vec_path=None, word=None):
 
     word_idx = word2id_dict[word]
 
-    # === Load word_vec
+    # === Load word_vecs
     word_vecs = []
     with open(word_vec_path, 'r') as f:
         for line in f:
@@ -66,7 +66,7 @@ def find_most_similar_words(model=None, word_vec_path=None, word=None):
 
     word_vecs = np.array(word_vecs)
 
-    # === Find
+    # === Find similar words
     word_vec = word_vecs[word_idx]
     print('word_idx', word_idx)
 
@@ -83,23 +83,25 @@ if __name__ == '__main__':
     checkpoint_dir = os.path.join(get_model_dir(), "word2vec")
     word_vec_path = os.path.join(get_data_dir(), "word_vectors")
 
-    vocab_size = 10001 # ptb, min_cnt = 5
+    #vocab_size = 10001 # ptb, min_cnt=5
+
+    vocab_size = 17617 # local_pdf, min_cnt=10
     window_size = 5
     num_neg = 5
     embedding_dim = 64
 
-    # === Load model
-    checkpoint_dir = os.path.join(get_model_dir(), "word2vec")
-    checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt")
-
+    # === model definition
     w2v = Word2vec(vocab_size=vocab_size,
                    window_size=window_size,
                    num_neg=num_neg,
                    embedding_dim=embedding_dim)
 
+    # === optimizer
     optimizer = tf.keras.optimizers.Adam(0.001)
-    w2v.compile(optimizer=optimizer)
 
+    # === Load model from checkpoint
+    checkpoint_dir = os.path.join(get_model_dir(), "word2vec")
+    checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt")
     checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=w2v)
     latest = tf.train.latest_checkpoint(checkpoint_dir)
     status = checkpoint.restore(latest)
@@ -116,7 +118,9 @@ if __name__ == '__main__':
     get_word_vectors(model=w2v, vocab_size=vocab_size, word_vec_path=word_vec_path)
 
     # === Find top sim words
-    word = 'computer'
+    #word = 'mathematics'
+    word = '推荐'
+    #word = ''
     find_most_similar_words(model=w2v, word_vec_path=word_vec_path, word=word)
 
 

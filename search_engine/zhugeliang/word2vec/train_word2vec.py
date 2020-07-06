@@ -8,9 +8,13 @@ import numpy as np
 
 
 def train_word2vec():
-    vocab_size = 10001  # min_cnt=5, ptb
-    total_num_train = 971657
-    total_num_val = 77130
+    # vocab_size = 10001  # min_cnt=5, ptb
+    # total_num_train = 971657
+    # total_num_val = 77130
+
+    vocab_size = 17617 # min_cnt=10, local_pdf
+    total_num_train = 1615567
+    total_num_val = 405872
 
     shuffle_buffer_size = 2048 * 2
     epochs = 10
@@ -19,8 +23,12 @@ def train_word2vec():
     num_neg = 5
     embedding_dim = 64 # To tune
 
-    train_path = os.path.join(get_data_dir(), "ptb.train.txt")
-    val_path = os.path.join(get_data_dir(), "ptb.valid.txt")
+    #train_path = os.path.join(get_data_dir(), "ptb.train.txt")
+    #val_path = os.path.join(get_data_dir(), "ptb.valid.txt")
+    #dict_dir = os.path.join(get_data_dir(), "book_dict")
+
+    train_path = os.path.join(get_data_dir(), "shuf_train.txt")
+    val_path = os.path.join(get_data_dir(), "shuf_val.txt")
     dict_dir = os.path.join(get_data_dir(), "book_dict")
 
     train_dataset = get_dataset(input_path=train_path,
@@ -39,13 +47,16 @@ def train_word2vec():
                               window_size=window_size,
                               num_neg=num_neg)
 
-    optimizer = tf.keras.optimizers.Adam(0.001)
-
+    # === model
     model = Word2vec(vocab_size=vocab_size,
                      window_size=window_size,
                      num_neg=num_neg,
                      embedding_dim=embedding_dim)
 
+    # === optimizer
+    optimizer = tf.keras.optimizers.Adam(0.001)
+
+    # === checkpoint
     checkpoint_dir = os.path.join(get_model_dir(), "word2vec")
     checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt")
     checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=model)
@@ -58,12 +69,12 @@ def train_word2vec():
         total_loss = 0
         batch_loss = 0
 
-        #total_train_batch = 101 # just for debug
-
         epoch_start = time.time()
         i = 0
         for batch_idx, (contexts, target, negatives) in zip(range(total_train_batch), train_dataset):
             i += 1
+
+            # === self-defined batch train
             cur_loss = train_step(model, optimizer, contexts, target, negatives)
             batch_loss += cur_loss
 
@@ -81,28 +92,8 @@ def train_word2vec():
         epoch_last = epoch_end - epoch_start
         print("Epoch: %d/%d, loss: %.4f, lasts: %.2fs" % (epoch+1, epochs, total_loss/(epoch+1), epoch_last))
 
-        # === Test sim
-        """
-        # [vocab_size, embedding_dim]
-        weights = model.output_embedding_layer.get_weights()
-        weights = np.array(weights[0])
-        print(weights.shape)
-        # computer: 236
-        #sample_word_idx = 236
-
-        # [embedding_dim, ]
-        sample = weights[236]
-
-        scores = np.dot(weights, sample)
-        rank = np.argsort(-scores)
-        top = rank[:20]
-        print("top", top)
-        print("score", scores[top])
-        """
-
+        # === model save
         checkpoint.save(file_prefix=checkpoint_prefix)
-        #print(model.output_embedding_layer.get_weights())
-        #print(get_word_representation(model=model))
 
 
     end = time.time()
@@ -114,8 +105,6 @@ def train_step(model, optimizer, contexts, target, negatives):
 
     with tf.GradientTape() as tape:
         batch_loss = model(contexts, target, negatives)
-
-    #batch_loss = batch_loss / contexts.shape[0] # need?
 
     variables = model.trainable_variables
     gradients = tape.gradient(batch_loss, variables)

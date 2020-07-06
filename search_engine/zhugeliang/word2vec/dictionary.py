@@ -81,15 +81,17 @@ def count_word(text_path=None, dict_path=None):
 
 
 if __name__ == "__main__":
-    #text_path = os.path.join(get_data_dir(), "book_text.txt")
-    text_path = os.path.join(get_data_dir(), "ptb_train_val.txt")
+    text_path = os.path.join(get_data_dir(), "book_text.txt")
+    #text_path = os.path.join(get_data_dir(), "ptb_train_val.txt")
     dict_dir = os.path.join(get_data_dir(), "book_dict")
 
     word_cnt_dict_path = os.path.join(dict_dir, "word_cnt_dict.pkl")
 
     count_word(text_path=text_path, dict_path=word_cnt_dict_path)
 
-    build_dictionary(dict_dir=dict_dir, min_word_count=5)
+    min_word_count = 10
+
+    build_dictionary(dict_dir=dict_dir, min_word_count=min_word_count)
 
     word_cnt_dict = load_dictionary(dict_path=word_cnt_dict_path)
     print(len(word_cnt_dict))

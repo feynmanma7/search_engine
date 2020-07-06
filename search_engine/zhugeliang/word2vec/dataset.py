@@ -32,6 +32,7 @@ def get_dataset(input_path=None,
                 if len(buf) < window_size * 2 + 1:
                     continue
 
+                # === word to index
                 index_buf = []
                 for word in buf:
                     if word not in word2id_dict:
@@ -41,7 +42,7 @@ def get_dataset(input_path=None,
                 if len(index_buf) < window_size * 2 + 1:
                     continue
 
-                # Simply remove region out of window_size, use (window_size, target, window_size)
+                # === Simply remove region out of window_size, use (window_size, target, window_size)
                 for i in range(window_size, len(index_buf) - window_size):
                     target = [index_buf[i]]
                     contexts = index_buf[i - window_size: i] + index_buf[i + 1: i + 1 + window_size]
@@ -49,6 +50,7 @@ def get_dataset(input_path=None,
 
                     yield contexts, target, negatives
 
+    # === get tensorflow dataset from generator
     dataset = tf.data.Dataset.from_generator(
         generator,
         output_shapes=((window_size*2, ), (1, ), (num_neg, )),
